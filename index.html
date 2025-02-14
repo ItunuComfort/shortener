@@ -3,20 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Responsive URL Shortener</title>
+  <title>Bitly URL Shortener</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-</head>
-<body>
-  <div class="card">
-    <h1>Responsive URL Shortener</h1>
-    <div class="input-group">
-      <input type="url" id="url-input" placeholder="Enter your long URL here...">
-      <button id="shorten-button">Shorten URL</button>
-    </div>
-    <div id="result-container" class="result"></div>
-    <h2 class="url-history">Shortened URL History</h2>
-    <div id="history-container"></div>
-  </div>
   <style>
     * {
       box-sizing: border-box;
@@ -26,7 +14,7 @@
     }
 
     body {
-      background: linear-gradient(to bottom, #dbeafe, #bfdbfe);
+      background: linear-gradient(to bottom, #1e3a8a, #2563eb);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -36,24 +24,24 @@
 
     .card {
       background: white;
-      max-width: 400px;
+      max-width: 420px;
       width: 100%;
       padding: 24px;
       border-radius: 16px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      text-align: center;
     }
 
     h1 {
-      text-align: center;
       color: #1e3a8a;
-      font-size: 28px;
-      margin-bottom: 24px;
+      font-size: 26px;
+      margin-bottom: 20px;
     }
 
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
     }
 
     input[type="url"] {
@@ -67,7 +55,7 @@
     }
 
     input[type="url"]:focus {
-      border-color: #3b82f6;
+      border-color: #2563eb;
     }
 
     button {
@@ -78,6 +66,7 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      transition: background 0.3s;
     }
 
     button:hover {
@@ -89,25 +78,18 @@
       padding: 12px;
       background-color: #eff6ff;
       border-radius: 8px;
-      word-break: break-word;
+      word-break: break-all;
     }
 
-    .url-history {
-      margin-top: 24px;
+    .loading {
+      font-size: 16px;
+      color: #1e3a8a;
+      margin-top: 10px;
     }
 
-    .url-history-item {
-      padding: 8px 12px;
-      background: white;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .error-message {
-      color: #dc2626;
-      font-size: 14px;
-      margin-top: 8px;
+    .error {
+      color: red;
+      margin-top: 10px;
     }
   </style>
   <script>
@@ -115,8 +97,8 @@
       const urlInput = document.getElementById('url-input');
       const shortenButton = document.getElementById('shorten-button');
       const resultContainer = document.getElementById('result-container');
-      const historyContainer = document.getElementById('history-container');
-      const history = JSON.parse(localStorage.getItem('urlHistory')) || [];
+      const loadingText = document.getElementById('loading-text');
+      const errorText = document.getElementById('error-text');
 
       function validateUrl(url) {
         try {
@@ -127,55 +109,59 @@
         }
       }
 
-      function renderHistory() {
-        historyContainer.innerHTML = '';
-        history.forEach(({ longUrl, shortUrl }) => {
-          const entry = document.createElement('div');
-          entry.classList.add('url-history-item');
-          entry.innerHTML = `<p><strong>Original:</strong> ${longUrl}</p><p><strong>Shortened:</strong> <a href="${shortUrl}" target="_blank">${shortUrl}</a></p>`;
-          historyContainer.appendChild(entry);
-        });
-      }
-
       async function shortenUrl() {
-        const longUrl = urlInput.value.trim();
-
-        resultContainer.classList.remove('error-message');
+        const longUrl = urlInput.value;
         resultContainer.textContent = '';
+        errorText.textContent = '';
+        
         if (!validateUrl(longUrl)) {
-          resultContainer.textContent = 'Please enter a valid URL.';
-          resultContainer.classList.add('error-message');
+          errorText.textContent = 'Please enter a valid URL.';
           return;
         }
 
-        resultContainer.textContent = 'Shortening...';
+        loadingText.style.display = 'block';
         shortenButton.disabled = true;
 
         try {
-          const response = await fetch(`https://api.shrtco.de/v2/shorten?url=${encodeURIComponent(longUrl)}`);
+          const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ "long_url": longUrl })
+          });
+
           const data = await response.json();
 
-          if (data.ok) {
-            const shortUrl = data.result.full_short_link;
+          if (response.ok) {
+            const shortUrl = data.link;
             resultContainer.innerHTML = `<strong>Shortened URL:</strong> <a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
-            history.unshift({ longUrl, shortUrl });
-            localStorage.setItem('urlHistory', JSON.stringify(history));
-            renderHistory();
           } else {
-            resultContainer.textContent = 'Failed to shorten the URL.';
-            resultContainer.classList.add('error-message');
+            errorText.textContent = data.message || 'Failed to shorten the URL. Please try again later.';
           }
         } catch (error) {
-          resultContainer.textContent = 'Error contacting the shortening service.';
-          resultContainer.classList.add('error-message');
+          errorText.textContent = 'Error contacting Bitly service.';
         } finally {
+          loadingText.style.display = 'none';
           shortenButton.disabled = false;
         }
       }
 
       shortenButton.addEventListener('click', shortenUrl);
-      renderHistory();
     });
   </script>
+</head>
+<body>
+  <div class="card">
+    <h1>Bitly URL Shortener</h1>
+    <div class="input-group">
+      <input type="url" id="url-input" placeholder="Enter your long URL here...">
+      <button id="shorten-button">Shorten URL</button>
+    </div>
+    <div id="loading-text" class="loading" style="display: none;">Shortening...</div>
+    <div id="error-text" class="error"></div>
+    <div id="result-container" class="result"></div>
+  </div>
 </body>
 </html>
